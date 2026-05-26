@@ -15,69 +15,15 @@ Industrial historian and trend visualization tool.
 
 ## Architecture
 
-┌─────────────────────┐
-│ Siemens PLC / OPCUA │
-└──────────┬──────────┘
-           │
-           ▼
-┌────────────────────────────┐
-│ Acquisition Service        │
-│                            │
-│ TraceWorks.Protocols.S7    │
-│ TraceWorks.Protocols.OpcUa │
-│                            │
-│ - PLC communication        │
-│ - Polling                  │
-│ - Decoding                 │
-│ - Reconnect handling       │
-└──────────┬─────────────────┘
-           │
-           ▼
-┌────────────────────────────┐
-│ In-Memory Channel Queue    │
-│                            │
-│ - High-speed buffering     │
-│ - Sample transport         │
-│ - Async processing         │
-└──────────┬─────────────────┘
-           │
-           ▼
-┌────────────────────────────┐
-│ TraceWorks.Storage         │
-│                            │
-│ - Reads Channel<T>         │
-│ - Batch buffering          │
-│ - Batched SQL inserts      │
-│ - Storage abstraction      │
-└──────────┬─────────────────┘
-           │
-           ▼
-┌────────────────────────────┐
-│ TimescaleDB / PostgreSQL   │
-│                            │
-│ - Historical storage       │
-│ - Compression              │
-│ - Retention policies       │
-└──────────┬─────────────────┘
-           │
-           ▼
-┌────────────────────────────┐
-│ TraceWorks.Server          │
-│                            │
-│ - ASP.NET Core UI          │
-│ - APIs                     │
-│ - Configuration            │
-│ - Playback                 │
-└──────────┬─────────────────┘
-           │
-           ▼
-┌────────────────────────────┐
-│ Browser UI                 │
-│                            │
-│ - Trends                   │
-│ - Visualization            │
-│ - Timeline playback        │
-└────────────────────────────┘
+
+1. Siemens PLC
+2. Acquisition service
+3. In-memory queue
+4. Storage service
+5. Batch buffering
+6. TimescaleDB
+7. ASP.NET Core
+8. browser charts
 
 ## Development Status
 
