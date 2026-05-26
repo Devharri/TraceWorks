@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TraceWorks.Protocols.OpcUa/TraceWorks.Protocols.OpcUa.csproj" />
+    <Project Path="src/TraceWorks.Protocols.S7/TraceWorks.Protocols.S7.csproj" />
+    <Project Path="src/TraceWorks.Server/TraceWorks.Server.csproj" />
+    <Project Path="src/TraceWorks.Shared/TraceWorks.Shared.csproj" />
+    <Project Path="src/TraceWorks.Storage/TraceWorks.Storage.csproj" />
+  </Folder>
+</Solution>
