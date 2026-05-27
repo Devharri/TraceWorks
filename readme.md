@@ -11,10 +11,8 @@ Industrial historian and trend visualization tool.
 - Cross-platform support
 - Local web UI
 - TimescaleDB storage
-- Docker support
 
 ## Architecture
-
 
 1. Siemens PLC
 2. Acquisition service
@@ -35,7 +33,6 @@ Early prototype.
 - [ ] Store data to database
 - [ ] Add buffering
 - [ ] Create trend UI
-- [ ] Docker integration
 - [ ] OPC UA support
 
 ## Technologies
@@ -43,7 +40,6 @@ Early prototype.
 - ASP.NET Core
 - C#
 - TimescaleDB
-- PostgreSQL
 - Docker
 
 ## License
