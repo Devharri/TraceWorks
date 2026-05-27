@@ -55,7 +55,7 @@ Early prototype - not production-ready
 - OPC UA .NET Standard
 
 ## License
-MIT License - see LICENSE file for details
+MIT License - see [MIT License](LICENSE) file for details
 
 ## Authors
 - Harri Honkanen
