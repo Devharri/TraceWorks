@@ -1,9 +1,10 @@
 # TraceWorks
+Industrial historian and trend visualization tool built with ASP.NET Core and TimescaleDB.
 
-Industrial historian and trend visualization tool.
+## Overview
+Tool to solve the urgent need for trace and trending tool. From servo drive parameter tuning to long term trace. 
 
 ## Features
-
 - Siemens S7 PLC communication
 - OPC UA support
 - Historical data logging
@@ -12,8 +13,18 @@ Industrial historian and trend visualization tool.
 - Local web UI
 - TimescaleDB storage
 
-## Architecture
+### Prerequisites
+- .NET 10+ 
+- Docker & Docker Compose
+- TimescaleDB instance
 
+### Installation
+git clone https://github.com/Devharri/TraceWorks.git
+cd TraceWorks
+dotnet build
+dotnet run --project src/TraceWorks.Server
+
+## Architecture
 1. Siemens PLC
 2. Acquisition service
 3. In-memory queue
@@ -24,11 +35,9 @@ Industrial historian and trend visualization tool.
 8. browser charts
 
 ## Development Status
-
-Early prototype.
+Early prototype - not production-ready
 
 ## Roadmap
-
 - [ ] Read PLC variables
 - [ ] Store data to database
 - [ ] Add buffering
@@ -36,12 +45,15 @@ Early prototype.
 - [ ] OPC UA support
 
 ## Technologies
-
 - ASP.NET Core
 - C#
 - TimescaleDB
 - Docker
+- S7NetPlus (Siemens communication)
+- OPC UA .NET Standard
 
 ## License
+MIT License - see LICENSE file for details
 
-TBD
+## Authors
+- Harri Honkanen

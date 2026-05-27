@@ -22,3 +22,21 @@ Thumbs.db
 
 # Environment files
 .env
+
+# Additional .NET patterns
+appsettings.*.json
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore
+
+# NuGet
+*.nupkg
+
+# Test results
+TestResults/
+
+# Coverage
+coverage/
