@@ -19,10 +19,12 @@ Tool to solve the urgent need for trace and trending tool. From servo drive para
 - TimescaleDB instance
 
 ### Installation
+```bash
 git clone https://github.com/Devharri/TraceWorks.git
 cd TraceWorks
 dotnet build
 dotnet run --project src/TraceWorks.Server
+```
 
 ## Architecture
 1. Siemens PLC
