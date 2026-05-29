@@ -40,7 +40,7 @@ dotnet run --project src/TraceWorks.Server
 Early prototype - not production-ready
 
 ## Roadmap
-- [ ] Read PLC variables
+- [x] Read PLC variables
 - [ ] Store data to database
 - [ ] Add buffering
 - [ ] Create trend UI
