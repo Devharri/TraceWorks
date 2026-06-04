@@ -1,18 +1,18 @@
 using TraceWorks.Protocols.S7.Services;
+using TraceWorks.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
+builder.Services.AddSingleton<TagConfigurationService>();
+builder.Services.AddSingleton<S7AcquisitionService>();
 
 var app = builder.Build();
 
-// start the PLC acquisition loop after the host has started
-var acquisitionService = new S7AcquisitionService();
-app.Lifetime.ApplicationStarted.Register(() =>
-{
-    _ = acquisitionService.StartAsync();
-});
+// Start the PLC acquisition service as a background task
+var acquisitionService = app.Services.GetRequiredService<S7AcquisitionService>();
+_ = acquisitionService.StartAsync();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

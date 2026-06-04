@@ -1,109 +1,206 @@
 using S7.Net;
 using TraceWorks.Shared.Models;
+using TraceWorks.Shared.Services;
 
 namespace TraceWorks.Protocols.S7.Services;
 
 public class S7AcquisitionService
 {
     private readonly Plc _plc;
+    private readonly TagConfigurationService _tagConfigurationService;
+    private readonly object _plcLock = new();
+    private readonly object _sync = new();
 
-    private readonly List<TagDefinition> _tags;
+    private readonly CancellationTokenSource _serviceCts = new();
+    private CancellationTokenSource _acquisitionCts = new();
+    private Task? _runningAcquisitionTask;
 
-    public S7AcquisitionService()
+    public S7AcquisitionService(TagConfigurationService tagConfigurationService)
     {
+        _tagConfigurationService = tagConfigurationService;
+        _tagConfigurationService.TagsChanged += OnTagsChanged;
+
         _plc = new Plc(
             CpuType.S71500,
             "192.168.1.2",
             0,
             1);
-
-        _tags = new List<TagDefinition>
-        {
-
-
-            new()
-            {
-                Id = 1,
-                Name = "bool",
-                Address = "DB100.DBX0.0",
-                DataType = TagDataType.Bool
-            },
-            new()
-            {
-                Id = 2,
-                Name = "real",
-                Address = "DB100.DBD2",
-                DataType = TagDataType.Float
-            },
-            new()
-            {
-                Id = 3,
-                Name = "int",
-                Address = "DB100.DBW6",
-                DataType = TagDataType.Int
-            }
-        };
     }
 
-    public async Task StartAsync()
+    public Task StartAsync()
     {
-        Console.WriteLine("Opening PLC connection...");
-        
-        _plc.Open();
+        _runningAcquisitionTask = RunAcquisitionLoopAsync(_serviceCts.Token);
+        return _runningAcquisitionTask;
+    }
 
-        Console.WriteLine("PLC connected.");
+    public void Stop()
+    {
+        _serviceCts.Cancel();
+    }
 
-        while (true)
+    private async Task RunAcquisitionLoopAsync(CancellationToken serviceToken)
+    {
+        try
         {
-            foreach (var tag in _tags)
+            _plc.Open();
+            Console.WriteLine("PLC connected.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"PLC connection failed: {ex.Message}");
+            return;
+        }
+
+        while (!serviceToken.IsCancellationRequested)
+        {
+            CancellationToken restartToken;
+
+            lock (_sync)
             {
+                _acquisitionCts.Cancel();
+                _acquisitionCts.Dispose();
+                _acquisitionCts = new CancellationTokenSource();
+                restartToken = _acquisitionCts.Token;
+            }
+
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(serviceToken, restartToken);
+            var combinedToken = linkedCts.Token;
+
+            var tagsByRate = _tagConfigurationService
+                .GetTags()
+                .GroupBy(t => t.PollingIntervalMs)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            if (tagsByRate.Count == 0)
+            {
+                Console.WriteLine("No configured tags. Waiting for tags to be added...");
                 try
                 {
-                    var raw = _plc.Read(tag.Address);
-                    
-                    if (raw is null)
-                    {
-                        Console.WriteLine($"No value read for {tag.Name}");
-                        continue;
-                    }
-                    Console.WriteLine(raw);
-                    double value = ConvertToDouble(raw);
-                    Console.WriteLine(value);
-                    var sample = new SampleModel
-                    {
-                        TagId = tag.Id,
-                        TimestampUtc = DateTime.UtcNow,
-                        Value = value
-                    };
-                    
-                    Console.WriteLine(
-                        $"{sample.TimestampUtc:HH:mm:ss.fff} | " +
-                        $"{sample.TagId} = {sample.Value}");
+                    await Task.Delay(TimeSpan.FromSeconds(1), combinedToken);
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException) when (combinedToken.IsCancellationRequested)
                 {
-                    Console.WriteLine($"Error reading {tag.Name}: {ex}");
-                    Console.WriteLine($"Error reading {tag.Name}: {ex.Message}");
+                    // restart or stop requested
+                }
+
+                continue;
+            }
+
+            var tasks = tagsByRate
+                .Select(kvp => AcquireTagGroupAsync(kvp.Key, kvp.Value, combinedToken))
+                .ToList();
+
+            try
+            {
+                await Task.WhenAll(tasks);
+                break; // only happens if all tasks complete normally
+            }
+            catch (OperationCanceledException) when (combinedToken.IsCancellationRequested)
+            {
+                if (serviceToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                Console.WriteLine("Tag configuration changed, restarting acquisition tasks.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Acquisition tasks failed: {ex.Message}");
+                Console.WriteLine(ex);
+
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), combinedToken);
+                }
+                catch (OperationCanceledException) when (combinedToken.IsCancellationRequested)
+                {
+                    // restart or stop requested
                 }
             }
-            Console.WriteLine($"Waiting for next acquisition cycle...");
-            await Task.Delay(5000);
         }
     }
 
+    private async Task AcquireTagGroupAsync(PollingInterval pollingInterval, List<TagDefinition> tagsInGroup, CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"Starting acquisition loop for {pollingInterval}ms with {tagsInGroup.Count} tags.");
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                foreach (var tag in tagsInGroup)
+                {
+                    try
+                    {
+                        object? raw;
+                        lock (_plcLock)  // Protect PLC read
+                        {
+                            raw = _plc.Read(tag.Address);
+                        }
+
+                        if (raw is null)
+                        {
+                            Console.WriteLine($"No value read for {tag.Name}");
+                            continue;
+                        }
+
+                        double value = ConvertToDouble(raw);
+
+                        var sample = new SampleModel
+                        {
+                            TagId = tag.Id,
+                            TimestampUtc = DateTimeOffset.UtcNow,
+                            Value = value
+                        };
+
+                        Console.WriteLine(
+                            $"{sample.TimestampUtc:HH:mm:ss.fff} | " +
+                            $"{sample.TagId} ({tag.Name}) = {sample.Value}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error reading {tag.Name}: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in polling interval {pollingInterval}ms loop: {ex.Message}");
+            }
+
+            // Wait for this group's polling interval before next acquisition
+            await Task.Delay((int)pollingInterval, cancellationToken);
+        }
+    }
+
+    private void OnTagsChanged()
+    {
+        Console.WriteLine("Tag configuration changed.");
+        lock (_sync)
+        {
+            _acquisitionCts.Cancel();
+        }
+    }
+
+
     private static double ConvertToDouble(object raw)
     {
-     return raw switch
-    {
-        bool b => b ? 1.0 : 0.0,
-        byte b => b,
-        ushort us => us,
-        short s => s,
-        int i => i,
-        uint ui => ui,
-        float f => f,
-        double d => d,
-        _ => 0.0
-    };
+        return raw switch
+        {
+            bool b => b ? 1.0 : 0.0,
+            byte b => b,
+            sbyte sb => sb,
+            ushort us => us,
+            short s => s,
+            uint ui => ui,
+            int i => i,
+            ulong ul => ul,
+            long l => l,
+            float f => f,
+            double d => d,
+            decimal dec => (double)dec,
+            _ => 0.0
+        };
     }
 }
