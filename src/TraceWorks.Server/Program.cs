@@ -13,6 +13,7 @@ var app = builder.Build();
 // Start the PLC acquisition service as a background task
 var acquisitionService = app.Services.GetRequiredService<S7AcquisitionService>();
 _ = acquisitionService.StartAsync();
+_ = acquisitionService.AddTagsTest();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

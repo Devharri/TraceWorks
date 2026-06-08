@@ -9,6 +9,8 @@ public sealed class TagConfigurationService
     public event Action? TagsChanged;
     public TagConfigurationService()
     {
+        /*
+
         // Initialize with some default tags
         _tags.Add(new TagDefinition
         {
@@ -35,7 +37,9 @@ public sealed class TagConfigurationService
             Address = "DB100.DBW6",
             DataType = TagDataType.Int,
             PollingIntervalMs = PollingInterval.Ms3000
-        });
+        }); 
+        
+        */
     }
 
     public IReadOnlyList<TagDefinition> GetTags()

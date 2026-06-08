@@ -33,6 +33,34 @@ public class S7AcquisitionService
         return _runningAcquisitionTask;
     }
 
+    public async Task AddTagsTest()
+    {
+        await AddTagAsync(new TagDefinition
+        {
+            Id = 1,
+            Name = "bool",
+            Address = "DB100.DBX0.0",
+            DataType = TagDataType.Bool,
+            PollingIntervalMs = PollingInterval.Ms3000
+        }, 5000);
+        await AddTagAsync(new TagDefinition
+        {
+            Id = 2,
+            Name = "real",
+            Address = "DB100.DBD2",
+            DataType = TagDataType.Float,
+            PollingIntervalMs = PollingInterval.Ms2000
+        }, 10000);
+        await AddTagAsync(new TagDefinition
+        {
+            Id = 3,
+            Name = "int",
+            Address = "DB100.DBW6",
+            DataType = TagDataType.Int,
+            PollingIntervalMs = PollingInterval.Ms1000
+        }, 15000);
+    }
+
     public void Stop()
     {
         _serviceCts.Cancel();
@@ -66,10 +94,13 @@ public class S7AcquisitionService
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(serviceToken, restartToken);
             var combinedToken = linkedCts.Token;
 
+            // Group tags by their polling interval to optimize acquisition loops
             var tagsByRate = _tagConfigurationService
                 .GetTags()
                 .GroupBy(t => t.PollingIntervalMs)
                 .ToDictionary(g => g.Key, g => g.ToList());
+
+            Console.WriteLine($"Starting acquisition with {tagsByRate.Count} polling groups.");
 
             if (tagsByRate.Count == 0)
             {
@@ -86,6 +117,7 @@ public class S7AcquisitionService
                 continue;
             }
 
+            // Start acquisition tasks for each group of tags with the same polling interval
             var tasks = tagsByRate
                 .Select(kvp => AcquireTagGroupAsync(kvp.Key, kvp.Value, combinedToken))
                 .ToList();
@@ -123,7 +155,7 @@ public class S7AcquisitionService
 
     private async Task AcquireTagGroupAsync(PollingInterval pollingInterval, List<TagDefinition> tagsInGroup, CancellationToken cancellationToken)
     {
-        Console.WriteLine($"Starting acquisition loop for {pollingInterval}ms with {tagsInGroup.Count} tags.");
+        Console.WriteLine($"Starting acquisition loop for {pollingInterval} with {tagsInGroup.Count} tags.");
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -145,6 +177,7 @@ public class S7AcquisitionService
                             continue;
                         }
 
+                        // Convert raw value to double for uniformity in processing
                         double value = ConvertToDouble(raw);
 
                         var sample = new SampleModel
@@ -181,6 +214,13 @@ public class S7AcquisitionService
         {
             _acquisitionCts.Cancel();
         }
+    }
+
+    private async Task AddTagAsync(TagDefinition tag, int delayMs)
+    {
+        // Simulate async work if needed (e.g., validation, database update)
+        await Task.Delay(delayMs);
+        _tagConfigurationService.AddTag(tag);
     }
 
 
