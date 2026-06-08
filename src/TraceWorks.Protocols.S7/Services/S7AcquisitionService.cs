@@ -107,7 +107,7 @@ public class S7AcquisitionService
                 Console.WriteLine("No configured tags. Waiting for tags to be added...");
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(1), combinedToken);
+                    await Task.Delay(TimeSpan.FromSeconds(3), combinedToken);
                 }
                 catch (OperationCanceledException) when (combinedToken.IsCancellationRequested)
                 {
@@ -143,7 +143,7 @@ public class S7AcquisitionService
 
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(1), combinedToken);
+                    await Task.Delay(TimeSpan.FromSeconds(3), combinedToken);
                 }
                 catch (OperationCanceledException) when (combinedToken.IsCancellationRequested)
                 {
