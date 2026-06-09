@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="S7netplus" Version="0.20.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0-preview.*" />
   </ItemGroup>
 
   <PropertyGroup>

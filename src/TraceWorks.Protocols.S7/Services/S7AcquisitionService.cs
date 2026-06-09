@@ -1,24 +1,27 @@
 using S7.Net;
 using TraceWorks.Shared.Models;
 using TraceWorks.Shared.Services;
+using System.Threading.Channels;
+using Microsoft.Extensions.Hosting;
 
 namespace TraceWorks.Protocols.S7.Services;
 
-public class S7AcquisitionService
+public sealed class S7AcquisitionService : BackgroundService
 {
     private readonly Plc _plc;
     private readonly TagConfigurationService _tagConfigurationService;
     private readonly object _plcLock = new();
     private readonly object _sync = new();
-
-    private readonly CancellationTokenSource _serviceCts = new();
     private CancellationTokenSource _acquisitionCts = new();
-    private Task? _runningAcquisitionTask;
+    private readonly Channel<SampleModel> _channel;
+    private volatile bool _recordingEnabled;
 
-    public S7AcquisitionService(TagConfigurationService tagConfigurationService)
+    public S7AcquisitionService(TagConfigurationService tagConfigurationService, Channel<SampleModel> channel)
     {
         _tagConfigurationService = tagConfigurationService;
         _tagConfigurationService.TagsChanged += OnTagsChanged;
+
+        _channel = channel;
 
         _plc = new Plc(
             CpuType.S71500,
@@ -26,13 +29,31 @@ public class S7AcquisitionService
             0,
             1);
     }
-
-    public Task StartAsync()
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _runningAcquisitionTask = RunAcquisitionLoopAsync(_serviceCts.Token);
-        return _runningAcquisitionTask;
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            if (!_recordingEnabled)
+            {
+                await Task.Delay(1000, stoppingToken);
+                Console.WriteLine("Recording is disabled. Waiting...");
+                StartRecording();
+                
+                continue;
+            }
+
+            await RunAcquisitionLoopAsync(stoppingToken);
+        }
+    }
+    public void StartRecording()
+    {
+        _recordingEnabled = true;
     }
 
+    public void StopRecording()
+    {
+        _recordingEnabled = false;
+    }
     public async Task AddTagsTest()
     {
         await AddTagAsync(new TagDefinition
@@ -60,12 +81,6 @@ public class S7AcquisitionService
             PollingIntervalMs = PollingInterval.Ms1000
         }, 15000);
     }
-
-    public void Stop()
-    {
-        _serviceCts.Cancel();
-    }
-
     private async Task RunAcquisitionLoopAsync(CancellationToken serviceToken)
     {
         try
@@ -182,14 +197,15 @@ public class S7AcquisitionService
 
                         var sample = new SampleModel
                         {
+                            TagName = tag.Name,
                             TagId = tag.Id,
                             TimestampUtc = DateTimeOffset.UtcNow,
                             Value = value
                         };
 
-                        Console.WriteLine(
-                            $"{sample.TimestampUtc:HH:mm:ss.fff} | " +
-                            $"{sample.TagId} ({tag.Name}) = {sample.Value}");
+                        await _channel.Writer.WriteAsync(sample, cancellationToken);
+
+                        //Console.WriteLine($"{sample.TimestampUtc:HH:mm:ss.fff} | " + $"{sample.TagId} ({tag.Name}) = {sample.Value}");
                     }
                     catch (Exception ex)
                     {

@@ -1,7 +1,6 @@
-namespace TraceWorks.Shared.Services;
-
 using TraceWorks.Shared.Models;
 
+namespace TraceWorks.Shared.Services;
 public sealed class TagConfigurationService
 {
     private readonly List<TagDefinition> _tags = [];
@@ -9,7 +8,7 @@ public sealed class TagConfigurationService
     public event Action? TagsChanged;
     public TagConfigurationService()
     {
-        /*
+        
 
         // Initialize with some default tags
         _tags.Add(new TagDefinition
@@ -39,7 +38,7 @@ public sealed class TagConfigurationService
             PollingIntervalMs = PollingInterval.Ms3000
         }); 
         
-        */
+        
     }
 
     public IReadOnlyList<TagDefinition> GetTags()
