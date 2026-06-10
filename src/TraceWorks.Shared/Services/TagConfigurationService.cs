@@ -4,12 +4,9 @@ namespace TraceWorks.Shared.Services;
 public sealed class TagConfigurationService
 {
     private readonly List<TagDefinition> _tags = [];
-
     public event Action? TagsChanged;
     public TagConfigurationService()
     {
-        
-
         // Initialize with some default tags
         _tags.Add(new TagDefinition
         {
@@ -19,7 +16,6 @@ public sealed class TagConfigurationService
             DataType = TagDataType.Bool,
             PollingIntervalMs = PollingInterval.Ms1000
         });
-
         _tags.Add(new TagDefinition
         {
             Id = 2,
@@ -28,7 +24,6 @@ public sealed class TagConfigurationService
             DataType = TagDataType.Float,
             PollingIntervalMs = PollingInterval.Ms2000
         });
-
         _tags.Add(new TagDefinition
         {
             Id = 3,
@@ -37,45 +32,34 @@ public sealed class TagConfigurationService
             DataType = TagDataType.Int,
             PollingIntervalMs = PollingInterval.Ms3000
         }); 
-        
-        
     }
-
     public IReadOnlyList<TagDefinition> GetTags()
     {
         return _tags.AsReadOnly();
     }
-
     public void AddTag(TagDefinition tag)
     {
         _tags.Add(tag);
         TagsChanged?.Invoke();
     }
-
     public void RemoveTag(int tagId)
     {
         var tag = _tags.FirstOrDefault(t => t.Id == tagId);
-
         if (tag is null)
         {
             return;
         }
-
         _tags.Remove(tag);
         TagsChanged?.Invoke();
     }
-
     public void UpdateTag(TagDefinition updatedTag)
     {
         var index = _tags.FindIndex(t => t.Id == updatedTag.Id);
-
         if (index < 0)
         {
             return;
         }
-
         _tags[index] = updatedTag;
-
         TagsChanged?.Invoke();
     }
 }

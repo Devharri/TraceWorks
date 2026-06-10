@@ -15,7 +15,6 @@ public sealed class S7AcquisitionService : BackgroundService
     private CancellationTokenSource _acquisitionCts = new();
     private readonly Channel<SampleModel> _channel;
     private volatile bool _recordingEnabled;
-
     public S7AcquisitionService(TagConfigurationService tagConfigurationService, Channel<SampleModel> channel)
     {
         _tagConfigurationService = tagConfigurationService;
@@ -38,10 +37,8 @@ public sealed class S7AcquisitionService : BackgroundService
                 await Task.Delay(1000, stoppingToken);
                 Console.WriteLine("Recording is disabled. Waiting...");
                 StartRecording();
-                
                 continue;
             }
-
             await RunAcquisitionLoopAsync(stoppingToken);
         }
     }
@@ -49,7 +46,6 @@ public sealed class S7AcquisitionService : BackgroundService
     {
         _recordingEnabled = true;
     }
-
     public void StopRecording()
     {
         _recordingEnabled = false;
@@ -93,11 +89,9 @@ public sealed class S7AcquisitionService : BackgroundService
             Console.WriteLine($"PLC connection failed: {ex.Message}");
             return;
         }
-
         while (!serviceToken.IsCancellationRequested)
         {
             CancellationToken restartToken;
-
             lock (_sync)
             {
                 _acquisitionCts.Cancel();
@@ -128,15 +122,12 @@ public sealed class S7AcquisitionService : BackgroundService
                 {
                     // restart or stop requested
                 }
-
                 continue;
             }
-
             // Start acquisition tasks for each group of tags with the same polling interval
             var tasks = tagsByRate
                 .Select(kvp => AcquireTagGroupAsync(kvp.Key, kvp.Value, combinedToken))
                 .ToList();
-
             try
             {
                 await Task.WhenAll(tasks);
@@ -148,14 +139,12 @@ public sealed class S7AcquisitionService : BackgroundService
                 {
                     break;
                 }
-
                 Console.WriteLine("Tag configuration changed, restarting acquisition tasks.");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Acquisition tasks failed: {ex.Message}");
                 Console.WriteLine(ex);
-
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(3), combinedToken);
@@ -167,11 +156,9 @@ public sealed class S7AcquisitionService : BackgroundService
             }
         }
     }
-
     private async Task AcquireTagGroupAsync(PollingInterval pollingInterval, List<TagDefinition> tagsInGroup, CancellationToken cancellationToken)
     {
         Console.WriteLine($"Starting acquisition loop for {pollingInterval} with {tagsInGroup.Count} tags.");
-
         while (!cancellationToken.IsCancellationRequested)
         {
             try
@@ -185,16 +172,13 @@ public sealed class S7AcquisitionService : BackgroundService
                         {
                             raw = _plc.Read(tag.Address);
                         }
-
                         if (raw is null)
                         {
                             Console.WriteLine($"No value read for {tag.Name}");
                             continue;
                         }
-
                         // Convert raw value to double for uniformity in processing
                         double value = ConvertToDouble(raw);
-
                         var sample = new SampleModel
                         {
                             TagName = tag.Name,
@@ -202,9 +186,7 @@ public sealed class S7AcquisitionService : BackgroundService
                             TimestampUtc = DateTimeOffset.UtcNow,
                             Value = value
                         };
-
                         await _channel.Writer.WriteAsync(sample, cancellationToken);
-
                         //Console.WriteLine($"{sample.TimestampUtc:HH:mm:ss.fff} | " + $"{sample.TagId} ({tag.Name}) = {sample.Value}");
                     }
                     catch (Exception ex)
@@ -217,12 +199,10 @@ public sealed class S7AcquisitionService : BackgroundService
             {
                 Console.WriteLine($"Error in polling interval {pollingInterval}ms loop: {ex.Message}");
             }
-
             // Wait for this group's polling interval before next acquisition
             await Task.Delay((int)pollingInterval, cancellationToken);
         }
     }
-
     private void OnTagsChanged()
     {
         Console.WriteLine("Tag configuration changed.");
@@ -231,15 +211,12 @@ public sealed class S7AcquisitionService : BackgroundService
             _acquisitionCts.Cancel();
         }
     }
-
     private async Task AddTagAsync(TagDefinition tag, int delayMs)
     {
         // Simulate async work if needed (e.g., validation, database update)
         await Task.Delay(delayMs);
         _tagConfigurationService.AddTag(tag);
     }
-
-
     private static double ConvertToDouble(object raw)
     {
         return raw switch

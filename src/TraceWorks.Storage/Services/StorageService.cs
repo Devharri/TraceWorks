@@ -6,12 +6,10 @@ namespace TraceWorks.Storage.Services;
 public sealed class StorageService : BackgroundService
 {
     private readonly Channel<SampleModel> _channel;
-
     public StorageService(Channel<SampleModel> channel)
     {
         _channel = channel;
     }
-
     protected override async Task ExecuteAsync(
         CancellationToken stoppingToken)
     {

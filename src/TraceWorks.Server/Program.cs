@@ -13,7 +13,6 @@ builder.Services.AddSingleton<TagConfigurationService>();
 builder.Services.AddHostedService<S7AcquisitionService>();
 builder.Services.AddHostedService<StorageService>();
 
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
