@@ -15,8 +15,6 @@ Tool to solve the urgent need for trace and trending tool. From servo drive para
 
 ### Prerequisites
 - .NET 10+ 
-- Docker & Docker Compose
-- TimescaleDB instance
 
 ### Installation
 ```bash
