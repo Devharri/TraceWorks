@@ -32,7 +32,7 @@ dotnet run --project src/TraceWorks.Server
 3. In-memory queue
 4. Storage service
 5. Batch buffering
-6. TimescaleDB
+6. SQlite database
 7. ASP.NET Core
 8. browser charts
 
@@ -51,7 +51,7 @@ Early prototype - not production-ready
 ## Technologies
 - ASP.NET Core
 - C#
-- TimescaleDB
+- SQlite
 - Docker
 - S7NetPlus (Siemens communication)
 - OPC UA .NET Standard
