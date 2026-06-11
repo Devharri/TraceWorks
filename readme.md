@@ -1,5 +1,5 @@
 # TraceWorks
-Industrial historian and trend visualization tool built with ASP.NET Core and TimescaleDB.
+Industrial historian and trend visualization tool built with ASP.NET Core and SQlite.
 
 ## Overview
 Tool to solve the urgent need for trace and trending tool. From servo drive parameter tuning to long term trace. 
@@ -11,7 +11,7 @@ Tool to solve the urgent need for trace and trending tool. From servo drive para
 - Trend visualization
 - Cross-platform support
 - Local web UI
-- TimescaleDB storage
+- SQlite storage
 
 ### Prerequisites
 - .NET 10+ 
