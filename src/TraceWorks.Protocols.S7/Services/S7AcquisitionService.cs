@@ -12,34 +12,68 @@ public sealed class S7AcquisitionService : BackgroundService
     private readonly TagConfigurationService _tagConfigurationService;
     private readonly object _plcLock = new();
     private readonly object _sync = new();
-    private CancellationTokenSource _acquisitionCts = new();
+    private CancellationTokenSource _restartCts = new();
     private readonly Channel<SampleModel> _channel;
     private volatile bool _recordingEnabled;
     public S7AcquisitionService(TagConfigurationService tagConfigurationService, Channel<SampleModel> channel)
     {
         _tagConfigurationService = tagConfigurationService;
         _tagConfigurationService.TagsChanged += OnTagsChanged;
-
         _channel = channel;
-
-        _plc = new Plc(
-            CpuType.S71500,
-            "192.168.1.2",
-            0,
-            1);
+        _plc = new Plc(CpuType.S71500, "192.168.1.2", 0, 1);
     }
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested)
         {
             if (!_recordingEnabled)
             {
-                await Task.Delay(1000, stoppingToken);
+                await Task.Delay(1000, cancellationToken);
                 Console.WriteLine("Recording is disabled. Waiting...");
                 StartRecording();
                 continue;
             }
-            await RunAcquisitionLoopAsync(stoppingToken);
+            if (!_plc.IsConnected)
+            {
+                await ConnectPlcAsync(cancellationToken);
+            }
+            await RunAcquisitionLoopAsync(cancellationToken);
+        }
+    }
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        lock (_sync)
+        {
+            _restartCts.Cancel();
+        }
+
+        _tagConfigurationService.TagsChanged -= OnTagsChanged;
+        await base.StopAsync(cancellationToken);
+        if (_plc.IsConnected)
+        {
+            _plc.Close();
+        }
+
+        (_plc as IDisposable)?.Dispose();
+        _restartCts.Dispose();
+    }
+    private async Task ConnectPlcAsync(CancellationToken cancellationToken)
+    {
+        var delay = TimeSpan.FromSeconds(3);
+        Console.WriteLine("Trying to connect to PLC.");
+        while (!_plc.IsConnected && !cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                _plc.Open();
+                Console.WriteLine("PLC reconnected.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PLC connect failed: {ex.Message}");
+                await Task.Delay(delay, cancellationToken);
+                delay = TimeSpan.FromSeconds(Math.Min(30, delay.TotalSeconds * 2));
+            }
         }
     }
     public void StartRecording()
@@ -49,56 +83,28 @@ public sealed class S7AcquisitionService : BackgroundService
     public void StopRecording()
     {
         _recordingEnabled = false;
-    }
-    public async Task AddTagsTest()
-    {
-        await AddTagAsync(new TagDefinition
+
+        lock (_sync)
         {
-            Id = 1,
-            Name = "bool",
-            Address = "DB100.DBX0.0",
-            DataType = TagDataType.Bool,
-            PollingIntervalMs = PollingInterval.Ms3000
-        }, 5000);
-        await AddTagAsync(new TagDefinition
-        {
-            Id = 2,
-            Name = "real",
-            Address = "DB100.DBD2",
-            DataType = TagDataType.Float,
-            PollingIntervalMs = PollingInterval.Ms2000
-        }, 10000);
-        await AddTagAsync(new TagDefinition
-        {
-            Id = 3,
-            Name = "int",
-            Address = "DB100.DBW6",
-            DataType = TagDataType.Int,
-            PollingIntervalMs = PollingInterval.Ms1000
-        }, 15000);
+            _restartCts.Cancel();
+        }
     }
     private async Task RunAcquisitionLoopAsync(CancellationToken serviceToken)
     {
-        try
-        {
-            _plc.Open();
-            Console.WriteLine("PLC connected.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"PLC connection failed: {ex.Message}");
-            return;
-        }
         while (!serviceToken.IsCancellationRequested)
         {
+            CancellationTokenSource oldCts;
             CancellationToken restartToken;
+
             lock (_sync)
             {
-                _acquisitionCts.Cancel();
-                _acquisitionCts.Dispose();
-                _acquisitionCts = new CancellationTokenSource();
-                restartToken = _acquisitionCts.Token;
+                oldCts = _restartCts;
+                _restartCts = new CancellationTokenSource();
+                restartToken = _restartCts.Token;
             }
+
+            oldCts.Cancel();
+            oldCts.Dispose();
 
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(serviceToken, restartToken);
             var combinedToken = linkedCts.Token;
@@ -144,7 +150,6 @@ public sealed class S7AcquisitionService : BackgroundService
             catch (Exception ex)
             {
                 Console.WriteLine($"Acquisition tasks failed: {ex.Message}");
-                Console.WriteLine(ex);
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(3), combinedToken);
@@ -177,14 +182,13 @@ public sealed class S7AcquisitionService : BackgroundService
                             Console.WriteLine($"No value read for {tag.Name}");
                             continue;
                         }
-                        // Convert raw value to double for uniformity in processing
-                        double value = ConvertToDouble(raw);
+
                         var sample = new SampleModel
                         {
                             TagName = tag.Name,
                             TagId = tag.Id,
                             TimestampUtc = DateTimeOffset.UtcNow,
-                            Value = value
+                            Value = ConvertToDouble(raw)
                         };
                         await _channel.Writer.WriteAsync(sample, cancellationToken);
                         //Console.WriteLine($"{sample.TimestampUtc:HH:mm:ss.fff} | " + $"{sample.TagId} ({tag.Name}) = {sample.Value}");
@@ -208,14 +212,8 @@ public sealed class S7AcquisitionService : BackgroundService
         Console.WriteLine("Tag configuration changed.");
         lock (_sync)
         {
-            _acquisitionCts.Cancel();
+            _restartCts.Cancel();
         }
-    }
-    private async Task AddTagAsync(TagDefinition tag, int delayMs)
-    {
-        // Simulate async work if needed (e.g., validation, database update)
-        await Task.Delay(delayMs);
-        _tagConfigurationService.AddTag(tag);
     }
     private static double ConvertToDouble(object raw)
     {

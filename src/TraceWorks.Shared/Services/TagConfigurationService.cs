@@ -16,6 +16,7 @@ public sealed class TagConfigurationService
             DataType = TagDataType.Bool,
             PollingIntervalMs = PollingInterval.Ms1000
         });
+        /*
         _tags.Add(new TagDefinition
         {
             Id = 2,
@@ -32,6 +33,7 @@ public sealed class TagConfigurationService
             DataType = TagDataType.Int,
             PollingIntervalMs = PollingInterval.Ms3000
         }); 
+        */
     }
     public IReadOnlyList<TagDefinition> GetTags()
     {
