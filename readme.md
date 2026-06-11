@@ -41,8 +41,10 @@ Early prototype - not production-ready
 
 ## Roadmap
 - [x] Read PLC variables
-- [ ] Store data to database
-- [ ] Add buffering
+- [x] Store to in-memory queue
+- [x] Add 1000 sample Batch buffering
+- [x] Store data to database in 1000 sample batches
+- [ ] Benchmark and monitor: in-memory queue, batch buffer, plc read, sqlite inserts
 - [ ] Create trend UI
 - [ ] OPC UA support
 
