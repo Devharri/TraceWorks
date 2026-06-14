@@ -161,7 +161,7 @@ public sealed class S7AcquisitionService : BackgroundService
             }
         }
     }
-    private async Task AcquireTagGroupAsync(PollingInterval pollingInterval, List<TagDefinition> tagsInGroup, CancellationToken cancellationToken)
+    private async Task AcquireTagGroupAsync(TagPollingInterval pollingInterval, List<TagDefinition> tagsInGroup, CancellationToken cancellationToken)
     {
         Console.WriteLine($"Starting acquisition loop for {pollingInterval} with {tagsInGroup.Count} tags.");
         while (!cancellationToken.IsCancellationRequested)

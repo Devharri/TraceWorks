@@ -10,5 +10,5 @@ public sealed class TagDefinition
 
     public TagDataType DataType { get; init; }
 
-    public PollingInterval PollingIntervalMs { get; init; }
+    public TagPollingInterval PollingIntervalMs { get; init; }
 }

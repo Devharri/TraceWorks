@@ -1,6 +1,6 @@
 namespace TraceWorks.Shared.Models;
 
-public enum PollingInterval
+public enum TagPollingInterval
 {
     Ms10 = 10,
     Ms20 = 20,
