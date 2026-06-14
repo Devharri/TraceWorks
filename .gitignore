@@ -40,3 +40,6 @@ TestResults/
 
 # Coverage
 coverage/
+
+#Continue.dev extension
+.continue/
