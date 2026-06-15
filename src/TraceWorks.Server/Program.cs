@@ -13,6 +13,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddSingleton(Channel.CreateBounded<SampleModel>(10000));
 builder.Services.AddSingleton<TagConfigurationService>();
 builder.Services.AddSingleton<PlcConfigurationService>();
+builder.Services.AddSingleton<MetricsService>();
 
 //Hosted services
 builder.Services.AddHostedService<S7AcquisitionService>();

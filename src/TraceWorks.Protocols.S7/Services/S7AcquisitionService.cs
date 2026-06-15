@@ -9,20 +9,22 @@ namespace TraceWorks.Protocols.S7.Services;
 public sealed class S7AcquisitionService : BackgroundService
 {
     private readonly PlcConfigurationService _plcConnectionService;
+    private readonly TagConfigurationService _tagConfigurationService;
+     private readonly Channel<SampleModel> _channel;
+     private readonly MetricsService _metrics;
     private Plc? _plc;
     private PlcConnectionParameters? _currentParameters;
-    private readonly TagConfigurationService _tagConfigurationService;
     private readonly object _plcLock = new();
     private readonly object _sync = new();
     private CancellationTokenSource _restartCts = new();
-    private readonly Channel<SampleModel> _channel;
     private volatile bool _recordingEnabled;
-    public S7AcquisitionService(TagConfigurationService tagConfigurationService, Channel<SampleModel> channel, PlcConfigurationService plcConnectionService)
+    public S7AcquisitionService(TagConfigurationService tagConfigurationService, Channel<SampleModel> channel, PlcConfigurationService plcConnectionService, MetricsService metrics)
     {
         _tagConfigurationService = tagConfigurationService;
         _tagConfigurationService.TagsChanged += OnTagsChanged;
         _channel = channel;
         _plcConnectionService = plcConnectionService;
+        _metrics = metrics;
         _plcConnectionService.ConnectionSettingsChanged += OnPlcParametersChanged;
     }
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
