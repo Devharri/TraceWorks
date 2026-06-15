@@ -4,7 +4,7 @@ public sealed class SampleModel
 {
     public int TagId { get; init; }
 
-    public string TagName { get; init; } = string.Empty;
+    public string TagName { get; init; } = "";
 
     public DateTimeOffset TimestampUtc { get; init; }
 

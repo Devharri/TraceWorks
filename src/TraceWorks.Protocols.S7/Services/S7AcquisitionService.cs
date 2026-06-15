@@ -8,24 +8,28 @@ namespace TraceWorks.Protocols.S7.Services;
 
 public sealed class S7AcquisitionService : BackgroundService
 {
-    private readonly Plc _plc;
+    private readonly PlcConfigurationService _plcConnectionService;
+    private Plc? _plc;
+    private PlcConnectionParameters? _currentParameters;
     private readonly TagConfigurationService _tagConfigurationService;
     private readonly object _plcLock = new();
     private readonly object _sync = new();
     private CancellationTokenSource _restartCts = new();
     private readonly Channel<SampleModel> _channel;
     private volatile bool _recordingEnabled;
-    public S7AcquisitionService(TagConfigurationService tagConfigurationService, Channel<SampleModel> channel)
+    public S7AcquisitionService(TagConfigurationService tagConfigurationService, Channel<SampleModel> channel, PlcConfigurationService plcConnectionService)
     {
         _tagConfigurationService = tagConfigurationService;
         _tagConfigurationService.TagsChanged += OnTagsChanged;
         _channel = channel;
-        _plc = new Plc(CpuType.S71500, "192.168.1.2", 0, 1);
+        _plcConnectionService = plcConnectionService;
+        _plcConnectionService.ConnectionSettingsChanged += OnPlcParametersChanged;
     }
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
+            // If recording is not enabled, wait and check again
             if (!_recordingEnabled)
             {
                 await Task.Delay(1000, cancellationToken);
@@ -33,11 +37,17 @@ public sealed class S7AcquisitionService : BackgroundService
                 StartRecording();
                 continue;
             }
-            if (!_plc.IsConnected)
+            // Ensure PLC connection is established before starting acquisition
+            if (!_plc?.IsConnected ?? true)
             {
                 await ConnectPlcAsync(cancellationToken);
             }
-            await RunAcquisitionLoopAsync(cancellationToken);
+
+            if (_plc?.IsConnected == true)
+            {
+                // Start acquisition loop which will run until a restart is requested or service is stopped
+                await RunAcquisitionLoopAsync(cancellationToken);
+            }
         }
     }
     public override async Task StopAsync(CancellationToken cancellationToken)
@@ -48,10 +58,11 @@ public sealed class S7AcquisitionService : BackgroundService
         }
 
         _tagConfigurationService.TagsChanged -= OnTagsChanged;
+        _plcConnectionService.ConnectionSettingsChanged -= OnPlcParametersChanged;
         await base.StopAsync(cancellationToken);
-        if (_plc.IsConnected)
+        if (_plc?.IsConnected == true)
         {
-            _plc.Close();
+            _plc?.Close();
         }
 
         (_plc as IDisposable)?.Dispose();
@@ -59,13 +70,14 @@ public sealed class S7AcquisitionService : BackgroundService
     }
     private async Task ConnectPlcAsync(CancellationToken cancellationToken)
     {
+        EnsurePlc();
         var delay = TimeSpan.FromSeconds(3);
         Console.WriteLine("Trying to connect to PLC.");
-        while (!_plc.IsConnected && !cancellationToken.IsCancellationRequested)
+        while (_plc?.IsConnected != true && !cancellationToken.IsCancellationRequested)
         {
             try
             {
-                _plc.Open();
+                _plc!.Open();
                 Console.WriteLine("PLC reconnected.");
             }
             catch (Exception ex)
@@ -73,6 +85,21 @@ public sealed class S7AcquisitionService : BackgroundService
                 Console.WriteLine($"PLC connect failed: {ex.Message}");
                 await Task.Delay(delay, cancellationToken);
                 delay = TimeSpan.FromSeconds(Math.Min(30, delay.TotalSeconds * 2));
+            }
+        }
+    }
+    private void EnsurePlc()
+    {
+        var parameters = _plcConnectionService.GetParameters();
+        lock (_plcLock)
+        {
+            if (_plc is null || !parameters.Equals(_currentParameters))
+            {
+                _plc?.Close();
+                (_plc as IDisposable)?.Dispose();
+
+                _plc = new Plc(parameters.CpuType, parameters.IpAddress, parameters.Rack, parameters.Slot);
+                _currentParameters = parameters;
             }
         }
     }
@@ -163,11 +190,19 @@ public sealed class S7AcquisitionService : BackgroundService
     }
     private async Task AcquireTagGroupAsync(TagPollingInterval pollingInterval, List<TagDefinition> tagsInGroup, CancellationToken cancellationToken)
     {
+
         Console.WriteLine($"Starting acquisition loop for {pollingInterval} with {tagsInGroup.Count} tags.");
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
+                if (_plc?.IsConnected != true)
+                {
+                    // wait a bit for reconnect, then exit this group task so the outer loop can reconnect
+                    await Task.Delay(1000, cancellationToken);
+                    return;
+                }
+
                 foreach (var tag in tagsInGroup)
                 {
                     try
@@ -210,6 +245,14 @@ public sealed class S7AcquisitionService : BackgroundService
     private void OnTagsChanged()
     {
         Console.WriteLine("Tag configuration changed.");
+        lock (_sync)
+        {
+            _restartCts.Cancel();
+        }
+    }
+    private void OnPlcParametersChanged()
+    {
+        Console.WriteLine("PLC connection parameters changed.");
         lock (_sync)
         {
             _restartCts.Cancel();

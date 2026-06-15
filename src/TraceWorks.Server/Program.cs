@@ -8,8 +8,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
+
+// Application services
 builder.Services.AddSingleton(Channel.CreateBounded<SampleModel>(10000));
 builder.Services.AddSingleton<TagConfigurationService>();
+builder.Services.AddSingleton<PlcConfigurationService>();
+
+//Hosted services
 builder.Services.AddHostedService<S7AcquisitionService>();
 builder.Services.AddHostedService<StorageService>();
 

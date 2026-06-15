@@ -14,7 +14,7 @@ public sealed class TagConfigurationService
             Name = "bool",
             Address = "DB100.DBX0.0",
             DataType = TagDataType.Bool,
-            PollingIntervalMs = PollingInterval.Ms1000
+            PollingIntervalMs = TagPollingInterval.Ms1000
         });
         /*
         _tags.Add(new TagDefinition
