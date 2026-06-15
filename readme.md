@@ -50,7 +50,6 @@ Early prototype - not production-ready
 - ASP.NET Core
 - C#
 - SQlite
-- Docker
 - S7NetPlus (Siemens communication)
 - OPC UA .NET Standard
 
