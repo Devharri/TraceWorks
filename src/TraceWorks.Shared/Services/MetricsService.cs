@@ -2,6 +2,7 @@ using TraceWorks.Shared.Models;
 using System.Diagnostics;
 
 namespace TraceWorks.Shared.Services;
+
 public sealed class MetricsService
 {
     private readonly Stopwatch _uptime = Stopwatch.StartNew();
@@ -93,7 +94,8 @@ public sealed class MetricsService
                     ? 0
                     : TimeSpan.FromTicks(
                         Volatile.Read(ref _dbWriteTicks) / dbWriteCount)
-                        .TotalMilliseconds
+                        .TotalMilliseconds,
+            MemoryMb = GC.GetTotalMemory(false) / 1024d / 1024d
         };
     }
 }

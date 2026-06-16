@@ -14,4 +14,5 @@ public sealed class MetricsSnapshotModel
     public double DbRowsPerSecond { get; init; }
     public double AvgPlcReadMs { get; init; }
     public double AvgDbWriteMs { get; init; }
+    public double MemoryMb { get; init; }
 }

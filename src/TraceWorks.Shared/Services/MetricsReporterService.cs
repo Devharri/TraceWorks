@@ -40,6 +40,9 @@ public sealed class MetricsReporterService : BackgroundService
             Console.WriteLine($"Avg PLC Read:    {m.AvgPlcReadMs:F2} ms");
             Console.WriteLine($"Avg DB Write:    {m.AvgDbWriteMs:F2} ms");
 
+            Console.WriteLine();
+            Console.WriteLine($"Memory Usage:    {m.MemoryMb:F1} MB");
+
             try
             {
                 await Task.Delay(1000, cancellationToken);
