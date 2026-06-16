@@ -30,6 +30,7 @@ public sealed class StorageService : BackgroundService
         _connection = new SqliteConnection(ConnectionString);
         await _connection.OpenAsync(cancellationToken);
 
+        // Ensure the Samples table exists and set journal mode to WAL for better concurrent performance
         using var cmd = _connection.CreateCommand();
         cmd.CommandText = @"PRAGMA journal_mode = WAL;
 CREATE TABLE IF NOT EXISTS Samples (
@@ -102,6 +103,7 @@ CREATE TABLE IF NOT EXISTS Samples (
 
             var sw = Stopwatch.StartNew();
 
+            // Use a transaction and prepared statement for efficient batch insertion
             using var transaction = _connection.BeginTransaction();
             using var cmd = _connection.CreateCommand();
             cmd.Transaction = transaction;
@@ -125,6 +127,7 @@ CREATE TABLE IF NOT EXISTS Samples (
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
             }
 
+            // Commit the transaction to persist all changes at once
             transaction.Commit();
 
             sw.Stop();

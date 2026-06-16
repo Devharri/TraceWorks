@@ -45,7 +45,7 @@ public sealed class S7AcquisitionService : BackgroundService
             {
                 await ConnectPlcAsync(cancellationToken);
             }
-
+            // If we have a connection, start the acquisition loop
             if (_plc?.IsConnected == true)
             {
                 // Start acquisition loop which will run until a restart is requested or service is stopped
@@ -96,6 +96,7 @@ public sealed class S7AcquisitionService : BackgroundService
         var parameters = _plcConnectionService.GetParameters();
         lock (_plcLock)
         {
+            // If we don't have a PLC instance yet, or if the connection parameters have changed, create a new PLC instance
             if (_plc is null || !parameters.Equals(_currentParameters))
             {
                 _plc?.Close();
@@ -232,9 +233,9 @@ public sealed class S7AcquisitionService : BackgroundService
                             TimestampUtc = DateTimeOffset.UtcNow,
                             Value = ConvertToDouble(raw)
                         };
+                        // Write sample to channel for processing by other services
                         await _channel.Writer.WriteAsync(sample, cancellationToken);
-                        _metrics.IncrementProduced(1); 
-                        //Console.WriteLine($"{sample.TimestampUtc:HH:mm:ss.fff} | " + $"{sample.TagId} ({tag.Name}) = {sample.Value}");
+                        _metrics.IncrementProduced(1);
                     }
                     catch (Exception ex)
                     {
@@ -267,7 +268,8 @@ public sealed class S7AcquisitionService : BackgroundService
         }
     }
     private static double ConvertToDouble(object raw)
-    {
+    {   
+        // Convert various PLC data types to double for uniform processing. This is a simplified example and may need to be expanded based on actual tag types used.
         return raw switch
         {
             bool b => b ? 1.0 : 0.0,
