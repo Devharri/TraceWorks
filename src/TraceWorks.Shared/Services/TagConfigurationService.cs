@@ -14,16 +14,16 @@ public sealed class TagConfigurationService
             Name = "bool",
             Address = "DB100.DBX0.0",
             DataType = TagDataType.Bool,
-            PollingIntervalMs = TagPollingInterval.Ms1000
+            PollingIntervalMs = TagPollingInterval.Ms50
         });
-        /*
+        
         _tags.Add(new TagDefinition
         {
             Id = 2,
             Name = "real",
             Address = "DB100.DBD2",
             DataType = TagDataType.Float,
-            PollingIntervalMs = PollingInterval.Ms2000
+            PollingIntervalMs = TagPollingInterval.Ms50
         });
         _tags.Add(new TagDefinition
         {
@@ -31,9 +31,9 @@ public sealed class TagConfigurationService
             Name = "int",
             Address = "DB100.DBW6",
             DataType = TagDataType.Int,
-            PollingIntervalMs = PollingInterval.Ms3000
+            PollingIntervalMs = TagPollingInterval.Ms50
         }); 
-        */
+        
     }
     public IReadOnlyList<TagDefinition> GetTags()
     {

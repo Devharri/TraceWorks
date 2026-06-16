@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Channels;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Hosting;
 using TraceWorks.Shared.Models;
+using TraceWorks.Shared.Services;
 
 namespace TraceWorks.Storage.Services;
 
@@ -12,12 +14,15 @@ public sealed class StorageService : BackgroundService
     private readonly List<SampleModel> _buffer = new();
     private readonly object _bufferLock = new();
     private readonly SemaphoreSlim _flushLock = new(1, 1);
-    private const int BatchSize = 10;
+    private const int BatchSize = 1000;
     private SqliteConnection? _connection;
     private static readonly string ConnectionString = $"Data Source={Path.Combine("/Users/harrihonkanen/DATA/TraceWorks/data", "sample.db")}";
-    public StorageService(Channel<SampleModel> channel)
+    private readonly MetricsService _metrics;
+
+    public StorageService(Channel<SampleModel> channel, MetricsService metrics)
     {
         _channel = channel;
+        _metrics = metrics;
     }
 
     public override async Task StartAsync(CancellationToken cancellationToken)
@@ -43,11 +48,13 @@ CREATE TABLE IF NOT EXISTS Samples (
     {
         await foreach (var sample in _channel.Reader.ReadAllAsync(cancellationToken))
         {
+            _metrics.IncrementConsumed(1);
             var shouldFlush = false;
 
             lock (_bufferLock)
             {
                 _buffer.Add(sample);
+                _metrics.SetBufferSize(_buffer.Count);
                 shouldFlush = _buffer.Count >= BatchSize;
             }
 
@@ -56,7 +63,7 @@ CREATE TABLE IF NOT EXISTS Samples (
                 await FlushAsync(cancellationToken);
             }
 
-            Console.WriteLine($"From channel: {sample.TagName} = {sample.Value} = {sample.TimestampUtc:O}");
+            //Console.WriteLine($"From channel: {sample.TagName} = {sample.Value} = {sample.TimestampUtc:O}");
         }
 
         await FlushAsync(cancellationToken);
@@ -77,7 +84,7 @@ CREATE TABLE IF NOT EXISTS Samples (
 
     private async Task FlushAsync(CancellationToken cancellationToken)
     {
-        Console.WriteLine("Starting to flush");
+        //Console.WriteLine("Starting to flush");
         if (_connection is null)
             return;
 
@@ -92,6 +99,8 @@ CREATE TABLE IF NOT EXISTS Samples (
 
                 batch = _buffer.ToArray();
             }
+
+            var sw = Stopwatch.StartNew();
 
             using var transaction = _connection.BeginTransaction();
             using var cmd = _connection.CreateCommand();
@@ -112,19 +121,23 @@ CREATE TABLE IF NOT EXISTS Samples (
                 pTagName.Value = sample.TagName;
                 pTimestamp.Value = sample.TimestampUtc.UtcDateTime.ToString("o");
                 pValue.Value = sample.Value;
-                Console.WriteLine("executing sql");
+                //Console.WriteLine("executing sql");
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
             }
 
             transaction.Commit();
+
+            sw.Stop();
+            _metrics.RecordDbWrite(sw.Elapsed);
+            _metrics.IncrementWrittenToDb(batch.Length);
 
             lock (_bufferLock)
             {
                 _buffer.RemoveRange(0, batch.Length);
             }
 
-            Console.WriteLine($"Flushed {batch.Length} samples to DB.");
-            Console.WriteLine($"Buffer: size: {_buffer.Count}");
+            //Console.WriteLine($"Flushed {batch.Length} samples to DB.");
+            //Console.WriteLine($"Buffer: size: {_buffer.Count}");
         }
         catch (Exception ex)
         {

@@ -18,6 +18,7 @@ builder.Services.AddSingleton<MetricsService>();
 //Hosted services
 builder.Services.AddHostedService<S7AcquisitionService>();
 builder.Services.AddHostedService<StorageService>();
+builder.Services.AddHostedService<MetricsReporterService>();
 
 var app = builder.Build();
 

@@ -3,6 +3,7 @@ using TraceWorks.Shared.Models;
 using TraceWorks.Shared.Services;
 using System.Threading.Channels;
 using Microsoft.Extensions.Hosting;
+using System.Diagnostics;
 
 namespace TraceWorks.Protocols.S7.Services;
 
@@ -10,8 +11,8 @@ public sealed class S7AcquisitionService : BackgroundService
 {
     private readonly PlcConfigurationService _plcConnectionService;
     private readonly TagConfigurationService _tagConfigurationService;
-     private readonly Channel<SampleModel> _channel;
-     private readonly MetricsService _metrics;
+    private readonly Channel<SampleModel> _channel;
+    private readonly MetricsService _metrics;
     private Plc? _plc;
     private PlcConnectionParameters? _currentParameters;
     private readonly object _plcLock = new();
@@ -209,11 +210,15 @@ public sealed class S7AcquisitionService : BackgroundService
                 {
                     try
                     {
+                        var sw = Stopwatch.StartNew();
                         object? raw;
                         lock (_plcLock)  // Protect PLC read
                         {
                             raw = _plc.Read(tag.Address);
                         }
+                        sw.Stop();
+                        _metrics.RecordPlcRead(sw.Elapsed);
+                        _metrics.IncrementPlcReads();
                         if (raw is null)
                         {
                             Console.WriteLine($"No value read for {tag.Name}");
@@ -228,6 +233,7 @@ public sealed class S7AcquisitionService : BackgroundService
                             Value = ConvertToDouble(raw)
                         };
                         await _channel.Writer.WriteAsync(sample, cancellationToken);
+                        _metrics.IncrementProduced(1); 
                         //Console.WriteLine($"{sample.TimestampUtc:HH:mm:ss.fff} | " + $"{sample.TagId} ({tag.Name}) = {sample.Value}");
                     }
                     catch (Exception ex)
