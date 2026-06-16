@@ -2,7 +2,7 @@ using S7.Net;
 
 namespace TraceWorks.Shared.Models;
 
-public sealed class PlcConnectionParameters
+public sealed class PlcConnectionModel
 {
     public CpuType CpuType { get; set; }
     public string IpAddress { get; set; } = "";

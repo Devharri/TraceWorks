@@ -3,12 +3,12 @@ using TraceWorks.Shared.Models;
 namespace TraceWorks.Shared.Services;
 public sealed class TagConfigurationService
 {
-    private readonly List<TagDefinition> _tags = [];
+    private readonly List<TagModel> _tags = [];
     public event Action? TagsChanged;
     public TagConfigurationService()
     {
         // Initialize with some default tags
-        _tags.Add(new TagDefinition
+        _tags.Add(new TagModel
         {
             Id = 1,
             Name = "bool",
@@ -17,7 +17,7 @@ public sealed class TagConfigurationService
             PollingIntervalMs = TagPollingInterval.Ms50
         });
         
-        _tags.Add(new TagDefinition
+        _tags.Add(new TagModel
         {
             Id = 2,
             Name = "real",
@@ -25,7 +25,7 @@ public sealed class TagConfigurationService
             DataType = TagDataType.Float,
             PollingIntervalMs = TagPollingInterval.Ms50
         });
-        _tags.Add(new TagDefinition
+        _tags.Add(new TagModel
         {
             Id = 3,
             Name = "int",
@@ -35,11 +35,11 @@ public sealed class TagConfigurationService
         }); 
         
     }
-    public IReadOnlyList<TagDefinition> GetTags()
+    public IReadOnlyList<TagModel> GetTags()
     {
         return _tags.AsReadOnly();
     }
-    public void AddTag(TagDefinition tag)
+    public void AddTag(TagModel tag)
     {
         _tags.Add(tag);
         TagsChanged?.Invoke();
@@ -54,7 +54,7 @@ public sealed class TagConfigurationService
         _tags.Remove(tag);
         TagsChanged?.Invoke();
     }
-    public void UpdateTag(TagDefinition updatedTag)
+    public void UpdateTag(TagModel updatedTag)
     {
         var index = _tags.FindIndex(t => t.Id == updatedTag.Id);
         if (index < 0)

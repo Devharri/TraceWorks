@@ -1,6 +1,6 @@
 namespace TraceWorks.Shared.Models;
 
-public sealed class TagDefinition
+public sealed class TagModel
 {
     public int Id { get; init; }
 

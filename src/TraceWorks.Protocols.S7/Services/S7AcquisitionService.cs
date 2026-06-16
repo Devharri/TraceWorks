@@ -14,7 +14,7 @@ public sealed class S7AcquisitionService : BackgroundService
     private readonly Channel<SampleModel> _channel;
     private readonly MetricsService _metrics;
     private Plc? _plc;
-    private PlcConnectionParameters? _currentParameters;
+    private PlcConnectionModel? _currentParameters;
     private readonly object _plcLock = new();
     private readonly object _sync = new();
     private CancellationTokenSource _restartCts = new();
@@ -191,7 +191,7 @@ public sealed class S7AcquisitionService : BackgroundService
             }
         }
     }
-    private async Task AcquireTagGroupAsync(TagPollingInterval pollingInterval, List<TagDefinition> tagsInGroup, CancellationToken cancellationToken)
+    private async Task AcquireTagGroupAsync(TagPollingInterval pollingInterval, List<TagModel> tagsInGroup, CancellationToken cancellationToken)
     {
 
         Console.WriteLine($"Starting acquisition loop for {pollingInterval} with {tagsInGroup.Count} tags.");

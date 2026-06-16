@@ -5,13 +5,13 @@ namespace TraceWorks.Shared.Services;
 
 public sealed class PlcConfigurationService
 {
-    private PlcConnectionParameters _parameters;
+    private PlcConnectionModel _parameters;
 
     public event Action? ConnectionSettingsChanged;
     public PlcConfigurationService()
     {
         //Initialize with default parameters
-        _parameters = new PlcConnectionParameters
+        _parameters = new PlcConnectionModel
         {
             CpuType = CpuType.S71500,
             IpAddress = "192.168.1.2",
@@ -20,13 +20,13 @@ public sealed class PlcConfigurationService
         };
     }
 
-    public void UpdateParameters(PlcConnectionParameters parameters)
+    public void UpdateParameters(PlcConnectionModel parameters)
     {
         _parameters = parameters;
         ConnectionSettingsChanged?.Invoke();
     }
 
-    public PlcConnectionParameters GetParameters()
+    public PlcConnectionModel GetParameters()
     {
         return _parameters;
     } 
