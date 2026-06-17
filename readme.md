@@ -42,7 +42,7 @@ Early prototype - not production-ready
 - [x] Store to in-memory queue (10,000 samples)
 - [x] Add Batch buffer (1,000 samples)
 - [x] Store data to database in batches
-- [ ] Benchmark and monitor: in-memory queue, batch buffer, plc read, sqlite inserts
+- [x] Benchmark and monitor: in-memory queue, batch buffer, plc read, sqlite inserts
 - [ ] Create trend UI
 - [ ] OPC UA support
 

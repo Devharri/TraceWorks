@@ -15,6 +15,7 @@ public sealed class StorageService : BackgroundService
     private readonly object _bufferLock = new();
     private readonly SemaphoreSlim _flushLock = new(1, 1);
     private const int BatchSize = 1000;
+    private const int EstimatedBytesPerSample = 32;
     private SqliteConnection? _connection;
     private static readonly string ConnectionString = $"Data Source={Path.Combine("/Users/harrihonkanen/DATA/TraceWorks/data", "sample.db")}";
     private readonly MetricsService _metrics;
@@ -36,8 +37,7 @@ public sealed class StorageService : BackgroundService
 CREATE TABLE IF NOT EXISTS Samples (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
     TagId INTEGER,
-    TagName TEXT NOT NULL,
-    TimestampUtc TEXT NOT NULL,
+    TimestampUtc INTEGER NOT NULL,
     Value REAL NOT NULL
 );";
         await cmd.ExecuteNonQueryAsync(cancellationToken);
@@ -63,8 +63,6 @@ CREATE TABLE IF NOT EXISTS Samples (
             {
                 await FlushAsync(cancellationToken);
             }
-
-            //Console.WriteLine($"From channel: {sample.TagName} = {sample.Value} = {sample.TimestampUtc:O}");
         }
 
         await FlushAsync(cancellationToken);
@@ -85,7 +83,6 @@ CREATE TABLE IF NOT EXISTS Samples (
 
     private async Task FlushAsync(CancellationToken cancellationToken)
     {
-        //Console.WriteLine("Starting to flush");
         if (_connection is null)
             return;
 
@@ -107,10 +104,9 @@ CREATE TABLE IF NOT EXISTS Samples (
             using var transaction = _connection.BeginTransaction();
             using var cmd = _connection.CreateCommand();
             cmd.Transaction = transaction;
-            cmd.CommandText = "INSERT INTO Samples (TagId, TagName, TimestampUtc, Value) VALUES (@tagId, @tagName, @timestamp, @value);";
+            cmd.CommandText = "INSERT INTO Samples (TagId, TimestampUtc, Value) VALUES (@tagId, @timestamp, @value);";
 
             var pTagId = cmd.CreateParameter(); pTagId.ParameterName = "@tagId"; cmd.Parameters.Add(pTagId);
-            var pTagName = cmd.CreateParameter(); pTagName.ParameterName = "@tagName"; cmd.Parameters.Add(pTagName);
             var pTimestamp = cmd.CreateParameter(); pTimestamp.ParameterName = "@timestamp"; cmd.Parameters.Add(pTimestamp);
             var pValue = cmd.CreateParameter(); pValue.ParameterName = "@value"; cmd.Parameters.Add(pValue);
 
@@ -120,10 +116,9 @@ CREATE TABLE IF NOT EXISTS Samples (
                     break;
 
                 pTagId.Value = sample.TagId;
-                pTagName.Value = sample.TagName;
-                pTimestamp.Value = sample.TimestampUtc.UtcDateTime.ToString("o");
+                pTimestamp.Value = sample.TimestampUtc.ToUnixTimeMilliseconds();
                 pValue.Value = sample.Value;
-                //Console.WriteLine("executing sql");
+                // Execute the insert command for each sample in the batch
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
             }
 
@@ -133,14 +128,13 @@ CREATE TABLE IF NOT EXISTS Samples (
             sw.Stop();
             _metrics.RecordDbWrite(sw.Elapsed);
             _metrics.IncrementWrittenToDb(batch.Length);
+            _metrics.RecordDbBytes(batch.Length * EstimatedBytesPerSample);
 
             lock (_bufferLock)
             {
                 _buffer.RemoveRange(0, batch.Length);
+                _metrics.SetBufferSize(_buffer.Count);
             }
-
-            //Console.WriteLine($"Flushed {batch.Length} samples to DB.");
-            //Console.WriteLine($"Buffer: size: {_buffer.Count}");
         }
         catch (Exception ex)
         {

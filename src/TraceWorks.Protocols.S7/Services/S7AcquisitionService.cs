@@ -19,6 +19,7 @@ public sealed class S7AcquisitionService : BackgroundService
     private readonly object _sync = new();
     private CancellationTokenSource _restartCts = new();
     private volatile bool _recordingEnabled;
+    private bool simulation = false; // Set to true to enable simulation mode with fake data generation
     public S7AcquisitionService(TagConfigurationService tagConfigurationService, Channel<SampleModel> channel, PlcConfigurationService plcConnectionService, MetricsService metrics)
     {
         _tagConfigurationService = tagConfigurationService;
@@ -39,6 +40,56 @@ public sealed class S7AcquisitionService : BackgroundService
                 Console.WriteLine("Recording is disabled. Waiting...");
                 StartRecording();
                 continue;
+            }
+
+            if (simulation)
+            {
+                Console.WriteLine("Running in simulation mode. Generating fake data.");
+                var simulatedTags = Enumerable.Range(1, 1000).Select(i => new TagModel
+                {
+                    Id = i,
+                    Name = $"SimTag{i}",
+                    Address = $"SIM{i}",
+                    DataType = TagDataType.Float,
+                    PollingIntervalMs = TagPollingInterval.Ms1000
+                }).ToList();
+                var random = new Random();
+
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    var cycleStopwatch = Stopwatch.StartNew();
+
+                    foreach (var tag in simulatedTags)
+                    {
+                        var readStopwatch = Stopwatch.StartNew();
+
+                        var sample = new SampleModel
+                        {
+                            TagId = tag.Id,
+                            TagName = tag.Name,
+                            TimestampUtc = DateTimeOffset.UtcNow,
+                            Value = Math.Round(random.NextDouble() * 100, 3)
+                        };
+
+                        readStopwatch.Stop();
+
+                        _metrics.RecordPlcRead(readStopwatch.Elapsed);
+                        _metrics.IncrementPlcReads();
+
+                        await _channel.Writer.WriteAsync(sample, cancellationToken);
+                        _metrics.IncrementProduced(1);
+                    }
+
+                    var elapsedMs = (int)cycleStopwatch.ElapsedMilliseconds;
+                    var delayMs = Math.Max(0, 50 - elapsedMs);
+
+                    if (delayMs > 0)
+                    {
+                        await Task.Delay(delayMs, cancellationToken);
+                    }
+                }
+
+                break; // Exit the main loop if we're in simulation mode and the cancellation token is triggered
             }
             // Ensure PLC connection is established before starting acquisition
             if (!_plc?.IsConnected ?? true)
@@ -268,7 +319,7 @@ public sealed class S7AcquisitionService : BackgroundService
         }
     }
     private static double ConvertToDouble(object raw)
-    {   
+    {
         // Convert various PLC data types to double for uniform processing. This is a simplified example and may need to be expanded based on actual tag types used.
         return raw switch
         {

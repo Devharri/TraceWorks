@@ -29,6 +29,7 @@ public sealed class MetricsReporterService : BackgroundService
             Console.WriteLine($"PLC Reads/s:     {m.PlcReadsPerSecond:F1}");
             Console.WriteLine($"Samples/s:       {m.SamplesPerSecond:F1}");
             Console.WriteLine($"DB Rows/s:       {m.DbRowsPerSecond:F1}");
+            Console.WriteLine($"DB MB/s:         {m.DbMbPerSecond:F3}");
 
             Console.WriteLine();
 
@@ -42,6 +43,7 @@ public sealed class MetricsReporterService : BackgroundService
 
             Console.WriteLine();
             Console.WriteLine($"Memory Usage:    {m.MemoryMb:F1} MB");
+            Console.WriteLine($"Process Memory:  {m.ProcessMemoryMb:F1} MB");
 
             try
             {

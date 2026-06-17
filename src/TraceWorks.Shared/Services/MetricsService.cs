@@ -20,6 +20,7 @@ public sealed class MetricsService
 
     private long _dbWriteTicks;
     private long _dbWriteCount;
+    private long _dbBytesWritten;
 
     public void IncrementPlcReads()
         => Interlocked.Increment(ref _plcReads);
@@ -54,12 +55,16 @@ public sealed class MetricsService
         Interlocked.Increment(ref _dbWriteCount);
     }
 
+    public void RecordDbBytes(long bytes)
+        => Interlocked.Add(ref _dbBytesWritten, bytes);
+
     public MetricsSnapshotModel GetSnapshot()
     {
         var uptimeSeconds = Math.Max(_uptime.Elapsed.TotalSeconds, 1);
 
         var plcReadCount = Volatile.Read(ref _plcReadCount);
         var dbWriteCount = Volatile.Read(ref _dbWriteCount);
+        var dbBytesWritten = Volatile.Read(ref _dbBytesWritten);
 
         return new MetricsSnapshotModel
         {
@@ -82,6 +87,9 @@ public sealed class MetricsService
             DbRowsPerSecond =
                 Volatile.Read(ref _samplesWrittenToDb) / uptimeSeconds,
 
+            DbMbPerSecond =
+                dbBytesWritten / 1024d / 1024d / uptimeSeconds,
+
             AvgPlcReadMs =
                 plcReadCount == 0
                     ? 0
@@ -95,7 +103,8 @@ public sealed class MetricsService
                     : TimeSpan.FromTicks(
                         Volatile.Read(ref _dbWriteTicks) / dbWriteCount)
                         .TotalMilliseconds,
-            MemoryMb = GC.GetTotalMemory(false) / 1024d / 1024d
+            MemoryMb = GC.GetTotalMemory(false) / 1024d / 1024d,
+            ProcessMemoryMb = Process.GetCurrentProcess().WorkingSet64 / 1024d / 1024d
         };
     }
 }
