@@ -2,8 +2,8 @@ namespace TraceWorks.Shared.Models;
 
 public enum TagDataType
 {
-    Bool,
-    Int,
-    Float,
-    Double
+    Bool = 1,
+    Int = 2,
+    Float = 3,
+    Double = 4
 }

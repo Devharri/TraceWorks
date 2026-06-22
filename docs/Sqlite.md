@@ -21,13 +21,29 @@ Example:
 
 Project_2026_06_18_12_00_00_123.db
 
-Absolute timestamp:
-
-AbsoluteTime = DbStartTime + ElapsedMs
-
 ---
 
 ## Tables
+
+### Metadata
+CREATE TABLE Metadata
+(
+    Key TEXT PRIMARY KEY,
+    Value TEXT NOT NULL
+);
+
+INSERT INTO Metadata (Key, Value)
+VALUES ('ProjectName', 'BoilerLine1');
+
+INSERT INTO Metadata (Key, Value)
+VALUES ('RecordingStartUtc', '2026-06-18T12:00:00.123Z');
+
+Purpose:
+- Store recording metadata, Project name and when recording started
+
+Absolute timestamp:
+
+AbsoluteTime = DbStartTime + ElapsedMs
 
 ### Tags
 
@@ -36,7 +52,7 @@ CREATE TABLE Tags
     TagId INTEGER PRIMARY KEY,
     Name TEXT NOT NULL,
     DataType INTEGER NOT NULL,
-    Offset INTEGER NOT NULL
+    Address TEXT NOT NULL
 );
 
 Purpose:
